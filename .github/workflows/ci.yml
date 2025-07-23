@@ -26,8 +26,8 @@ jobs:
 
       - name: Run MLflow Project (No Conda)
         run: |
-          "python modelling.py --data_path {data_path}"
-          
+            mlflow run . -P data_path=data_preprocessed.csv
+
       - name: Upload model artifact
         uses: actions/upload-artifact@v4
         with:
