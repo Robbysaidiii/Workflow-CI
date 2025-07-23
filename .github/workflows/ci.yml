@@ -31,7 +31,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: model
-          path: mlruns  # ✅ Upload entire mlruns so we get full structure
+          path: mlruns  # Upload full MLflow tracking dir
 
   docker:
     needs: train
@@ -40,6 +40,15 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-activate-base: false
+          activate-environment: mlflow-env
+          environment-file: MLProject/conda.yaml
+          auto-update-conda: true
+          conda-solver: classic
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -54,7 +63,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: model
-          path: mlruns  
+          path: mlruns
 
       - name: Debug artifact path
         run: |
@@ -62,6 +71,7 @@ jobs:
           ls -R mlruns
 
       - name: Build and Push Docker Image
+        shell: bash -l {0}  # 🧠 activate conda shell
         run: |
           LATEST_RUN=$(ls -td mlruns/0/* | head -1)
           echo "Using model path: $LATEST_RUN/artifacts/model"
