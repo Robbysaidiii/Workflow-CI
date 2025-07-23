@@ -23,6 +23,12 @@ jobs:
           auto-update-conda: true
           conda-solver: classic
 
+      - name: Install mlflow
+        shell: bash -l {0}
+        run: |
+          conda activate mlflow-env
+          pip install mlflow
+
       - name: Run MLflow Project
         shell: bash -l {0}
         working-directory: MLProject
@@ -34,7 +40,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: model
-          path: mlruns
+          path: MLProject/outputs/
 
   docker:
     needs: train
@@ -53,6 +59,12 @@ jobs:
           auto-update-conda: true
           conda-solver: classic
 
+      - name: Install mlflow
+        shell: bash -l {0}
+        run: |
+          conda activate mlflow-env
+          pip install mlflow
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -66,23 +78,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: model
-          path: mlruns
-
-      - name: Debug artifact path
-        run: |
-          echo "Listing mlruns directory:"
-          ls -R mlruns
-
-      - name: Set model path from latest run
-        id: set_model_path
-        run: |
-          LATEST_RUN=$(find mlruns -type f -name "meta.yaml" | sort | tail -n 1 | xargs dirname)
-          echo "MODEL_PATH=$LATEST_RUN/artifacts/model.pkl" >> $GITHUB_ENV
+          path: MLProject/outputs/
 
       - name: Build and Push Docker Image
         shell: bash -l {0}
         run: |
           conda activate mlflow-env
-          mlflow models build-docker -m $MODEL_PATH -n salary-model
+          mlflow models build-docker -m MLProject/outputs -n salary-model
           docker tag salary-model ${{ secrets.DOCKER_USERNAME }}/income-classification:latest
           docker push ${{ secrets.DOCKER_USERNAME }}/income-classification:latest
