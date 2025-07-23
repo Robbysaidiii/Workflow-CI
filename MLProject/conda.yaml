@@ -1,8 +1,8 @@
 dependencies:
-  - python=3.9
+  - python=3.10
   - scikit-learn
   - pandas
-  - numpy
+  - mlflow
   - pip
   - pip:
-    - mlflow
+      - dagshub
