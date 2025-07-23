@@ -10,10 +10,8 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score
 
 def main(data_path):
-    mlflow.set_tracking_uri("file:../mlruns")
-    mlflow.set_experiment("salary-prediction")
 
-    with mlflow.start_run():
+    with mlflow.start_run():  
         df = pd.read_csv(data_path)
         X = pd.get_dummies(df.drop(columns=["salary_bin"]))
         y = LabelEncoder().fit_transform(df["salary_bin"])
@@ -36,7 +34,6 @@ def main(data_path):
         os.makedirs("outputs", exist_ok=True)
         model_path = "outputs/model.pkl"
         joblib.dump(model, model_path)
-
         mlflow.log_artifact(model_path)
 
 if __name__ == "__main__":
