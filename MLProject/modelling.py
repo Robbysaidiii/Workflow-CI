@@ -10,7 +10,6 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score
 
 def main(data_path):
-    # ✅ Simpan ke folder mlruns di root project
     mlflow.set_tracking_uri("file:../mlruns")
     mlflow.set_experiment("salary-prediction")
 

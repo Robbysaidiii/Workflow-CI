@@ -24,14 +24,17 @@ jobs:
           conda-solver: classic
 
       - name: Run MLflow Project
+        shell: bash -l {0}
         working-directory: MLProject
-        run: conda run -n mlflow-env mlflow run . -P data_path=data_preprocessed.csv
+        run: |
+          conda activate mlflow-env
+          mlflow run . -P data_path=data_preprocessed.csv
 
       - name: Upload model artifact
         uses: actions/upload-artifact@v4
         with:
           name: model
-          path: mlruns  # Upload seluruh folder mlruns (tracking)
+          path: mlruns
 
   docker:
     needs: train
@@ -73,13 +76,13 @@ jobs:
       - name: Set model path from latest run
         id: set_model_path
         run: |
-          LATEST_RUN=$(find mlruns/*/* -type f -name "meta.yaml" | sort | tail -n 1 | xargs dirname)
-          echo "Model path: $LATEST_RUN/artifacts/model.pkl"
+          LATEST_RUN=$(find mlruns -type f -name "meta.yaml" | sort | tail -n 1 | xargs dirname)
           echo "MODEL_PATH=$LATEST_RUN/artifacts/model.pkl" >> $GITHUB_ENV
 
       - name: Build and Push Docker Image
-        shell: bash -l {0}  # activate conda shell
+        shell: bash -l {0}
         run: |
+          conda activate mlflow-env
           mlflow models build-docker -m $MODEL_PATH -n salary-model
           docker tag salary-model ${{ secrets.DOCKER_USERNAME }}/income-classification:latest
           docker push ${{ secrets.DOCKER_USERNAME }}/income-classification:latest
