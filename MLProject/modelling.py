@@ -8,12 +8,10 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score
+import mlflow.sklearn  # ⬅️ Tambahan penting
 
 def main(data_path):
-    # Hapus: mlflow.set_tracking_uri()
-    # Hapus: mlflow.set_experiment()
-
-    with mlflow.start_run():  # ❌ JANGAN nested, biarkan CLI kontrol
+    with mlflow.start_run():
         df = pd.read_csv(data_path)
         X = pd.get_dummies(df.drop(columns=["salary_bin"]))
         y = LabelEncoder().fit_transform(df["salary_bin"])
@@ -33,10 +31,17 @@ def main(data_path):
         mlflow.log_param("random_state", 42)
         mlflow.log_metric("accuracy", acc)
 
+        # Logging sebagai artifact biasa (opsional)
         os.makedirs("outputs", exist_ok=True)
-        model_path = "outputs/model.pkl"
-        joblib.dump(model, model_path)
-        mlflow.log_artifact(model_path)
+        joblib.dump(model, "outputs/model.pkl")
+        mlflow.log_artifact("outputs/model.pkl")
+
+        # ✅ Logging model secara resmi dengan MLflow
+        mlflow.sklearn.log_model(
+            sk_model=model,
+            artifact_path="model",
+            registered_model_name=None  
+        )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
