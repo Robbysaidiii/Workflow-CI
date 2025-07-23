@@ -1,6 +1,6 @@
 name: income-classification
 
-conda_env: conda.yaml
+conda_env: MLProject/conda.yaml
 
 entry_points:
   main:
