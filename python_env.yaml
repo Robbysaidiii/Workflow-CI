@@ -1,4 +1,3 @@
-name: myenv
 channels:
   - defaults
 dependencies:
@@ -6,5 +5,5 @@ dependencies:
   - pip
   - pip:
       - mlflow
-      - scikit-learn
       - pandas
+      - scikit-learn
