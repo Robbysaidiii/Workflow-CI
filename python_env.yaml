@@ -1,6 +1,9 @@
 # python_env.yaml
+python: 3.10
+build_dependencies:
+  - pip
 dependencies:
   - pip:
-    - pandas
-    - scikit-learn
-    - mlflow
+      - pandas
+      - scikit-learn
+      - mlflow
