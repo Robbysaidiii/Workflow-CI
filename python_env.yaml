@@ -1,8 +1,6 @@
-channels:
-  - defaults
-dependencies:
-  - python=3.10
-  - pip
-  - pip:
-      - mlflow
-      - scikit-learn
+python: "3.10"
+build:
+  pip:
+    - mlflow
+    - scikit-learn
+    - pandas
