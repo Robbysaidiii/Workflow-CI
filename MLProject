@@ -1,6 +1,6 @@
 name: workflow-ci
 
-python_env: python_env.yaml
+python_env: conda.yaml
 
 entry_points:
   main:
