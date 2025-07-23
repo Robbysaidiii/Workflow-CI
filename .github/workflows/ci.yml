@@ -1,4 +1,5 @@
-name: Train and Deploy ML Model
+name: Train and Deploy ML Model v2
+
 
 on:
   push:
