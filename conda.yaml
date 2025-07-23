@@ -1,4 +1,4 @@
-name: mlflow-env
+name: salary-model-env
 channels:
   - defaults
 dependencies:

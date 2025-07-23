@@ -24,7 +24,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install mlflow pandas scikit-learn
 
-      - name: Run MLflow Project (No Conda)
+      - name: Train model with MLflow
         run: |
             mlflow run . -P data_path=data_preprocessed.csv
 

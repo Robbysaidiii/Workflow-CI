@@ -1,9 +1,9 @@
-name: salary-prediction
-
-conda_env: conda.yaml
+name: salary-model
 
 entry_points:
   main:
     parameters:
       data_path: {type: str}
     command: "python modelling.py --data_path {data_path}"
+
+python_env: python_env.yaml
