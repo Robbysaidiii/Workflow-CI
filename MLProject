@@ -1,9 +1,0 @@
-name: salary-pipeline
-
-python_env: python_env.yaml
-
-entry_points:
-  main:
-    parameters:
-      data_path: {type: str}
-    command: "python modelling.py --data_path {data_path}"

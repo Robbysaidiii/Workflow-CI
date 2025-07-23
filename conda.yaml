@@ -1,6 +1,0 @@
-python: "3.10"
-dependencies:
-  - pip:
-      - mlflow
-      - pandas
-      - scikit-learn
