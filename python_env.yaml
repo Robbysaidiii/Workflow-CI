@@ -1,9 +1,6 @@
-channels:
-  - defaults
+# python_env.yaml
 dependencies:
-  - python=3.10
-  - pip
   - pip:
-      - mlflow
-      - pandas
-      - scikit-learn
+    - pandas
+    - scikit-learn
+    - mlflow
