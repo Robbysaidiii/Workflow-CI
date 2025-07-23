@@ -8,9 +8,12 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score
-import mlflow.sklearn  # ⬅️ Tambahan penting
 
 def main(data_path):
+    # ✅ Simpan ke folder mlruns di root project
+    mlflow.set_tracking_uri("file:../mlruns")
+    mlflow.set_experiment("salary-prediction")
+
     with mlflow.start_run():
         df = pd.read_csv(data_path)
         X = pd.get_dummies(df.drop(columns=["salary_bin"]))
@@ -31,17 +34,11 @@ def main(data_path):
         mlflow.log_param("random_state", 42)
         mlflow.log_metric("accuracy", acc)
 
-        # Logging sebagai artifact biasa (opsional)
         os.makedirs("outputs", exist_ok=True)
-        joblib.dump(model, "outputs/model.pkl")
-        mlflow.log_artifact("outputs/model.pkl")
+        model_path = "outputs/model.pkl"
+        joblib.dump(model, model_path)
 
-        # ✅ Logging model secara resmi dengan MLflow
-        mlflow.sklearn.log_model(
-            sk_model=model,
-            artifact_path="model",
-            registered_model_name=None  
-        )
+        mlflow.log_artifact(model_path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
