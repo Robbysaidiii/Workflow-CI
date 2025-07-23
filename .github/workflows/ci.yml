@@ -31,7 +31,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: model
-          path: mlruns/0/
+          path: mlruns  # ✅ Upload entire mlruns so we get full structure
 
   docker:
     needs: train
@@ -54,11 +54,16 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: model
-          path: MLProject/mlruns/0/
+          path: mlruns  
+
+      - name: Debug artifact path
+        run: |
+          echo "Listing mlruns directory:"
+          ls -R mlruns
 
       - name: Build and Push Docker Image
         run: |
-          LATEST_RUN=$(ls -td MLProject/mlruns/0/* | head -1)
+          LATEST_RUN=$(ls -td mlruns/0/* | head -1)
           echo "Using model path: $LATEST_RUN/artifacts/model"
           mlflow models build-docker -m $LATEST_RUN/artifacts/model -n salary-model
           docker tag salary-model ${{ secrets.DOCKER_USERNAME }}/income-classification:latest
