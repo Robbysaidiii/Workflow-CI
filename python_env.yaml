@@ -1,10 +1,8 @@
-name: salary-model-env
 channels:
   - defaults
 dependencies:
   - python=3.10
   - pip
   - pip:
-      - pandas
-      - scikit-learn
       - mlflow
+      - scikit-learn
