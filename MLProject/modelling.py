@@ -13,31 +13,34 @@ def main(data_path):
     mlflow.set_tracking_uri("file:../mlruns")
     mlflow.set_experiment("salary-prediction")
 
-    with mlflow.start_run():
-        df = pd.read_csv(data_path)
-        X = pd.get_dummies(df.drop(columns=["salary_bin"]))
-        y = LabelEncoder().fit_transform(df["salary_bin"])
+    # Hanya start run kalau belum aktif (agar aman di CLI & MLflow Project)
+    if mlflow.active_run() is None:
+        mlflow.start_run()
 
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, stratify=y, test_size=0.2, random_state=42
-        )
+    df = pd.read_csv(data_path)
+    X = pd.get_dummies(df.drop(columns=["salary_bin"]))
+    y = LabelEncoder().fit_transform(df["salary_bin"])
 
-        model = RandomForestClassifier(n_estimators=100, random_state=42)
-        model.fit(X_train, y_train)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, stratify=y, test_size=0.2, random_state=42
+    )
 
-        preds = model.predict(X_test)
-        acc = accuracy_score(y_test, preds)
-        print("✅ Akurasi:", acc)
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(X_train, y_train)
 
-        mlflow.log_param("n_estimators", 100)
-        mlflow.log_param("random_state", 42)
-        mlflow.log_metric("accuracy", acc)
+    preds = model.predict(X_test)
+    acc = accuracy_score(y_test, preds)
+    print("✅ Akurasi:", acc)
 
-        os.makedirs("outputs", exist_ok=True)
-        model_path = "outputs/model.pkl"
-        joblib.dump(model, model_path)
+    mlflow.log_param("n_estimators", 100)
+    mlflow.log_param("random_state", 42)
+    mlflow.log_metric("accuracy", acc)
 
-        mlflow.log_artifact(model_path)
+    os.makedirs("outputs", exist_ok=True)
+    model_path = "outputs/model.pkl"
+    joblib.dump(model, model_path)
+
+    mlflow.log_artifact(model_path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
