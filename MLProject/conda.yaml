@@ -1,4 +1,4 @@
-name: salary-env
+name: mlflow-env
 channels:
   - defaults
 dependencies:
@@ -8,5 +8,3 @@ dependencies:
       - mlflow
       - pandas
       - scikit-learn
-      - matplotlib
-      - seaborn
