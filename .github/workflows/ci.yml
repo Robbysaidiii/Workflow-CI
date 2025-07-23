@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [ main ]
 
-
 jobs:
   train:
     runs-on: ubuntu-latest
@@ -33,7 +32,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: model
-          path: mlruns/0/  # ✅ Ubah ke direktori lokal hasil tracking MLflow
+          path: mlruns/0/
 
   docker:
     needs: train
