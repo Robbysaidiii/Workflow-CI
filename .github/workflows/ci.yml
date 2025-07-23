@@ -22,12 +22,12 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install mlflow
+          pip install mlflow pandas scikit-learn
 
-      - name: Run MLflow Project
+      - name: Run MLflow Project (No Conda)
         run: |
-          mlflow run . -P data_path=data_preprocessed.csv
-
+          "python modelling.py --data_path {data_path}"
+          
       - name: Upload model artifact
         uses: actions/upload-artifact@v4
         with:
