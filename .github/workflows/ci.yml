@@ -73,7 +73,7 @@ jobs:
       - name: Build and Push Docker Image
         shell: bash -l {0}  # 🧠 activate conda shell
         run: |
-          LATEST_RUN=$(ls -td mlruns/0/* | head -1)
+          LATEST_RUN=$(find mlruns/0 -type d -name artifacts | sed 's|/artifacts||' | head -1)
           echo "Using model path: $LATEST_RUN/artifacts/model"
           mlflow models build-docker -m $LATEST_RUN/artifacts/model -n salary-model
           docker tag salary-model ${{ secrets.DOCKER_USERNAME }}/income-classification:latest
