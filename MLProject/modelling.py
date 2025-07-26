@@ -1,68 +1,55 @@
+# modelling.py
+
 import argparse
-import os
 import pandas as pd
 import mlflow
-import joblib
-import shutil
-from mlflow.artifacts import download_artifacts
-
+import mlflow.sklearn
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import accuracy_score
-
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
 def main(data_path):
-    with mlflow.start_run() as run:
-        # Load dataset
-        df = pd.read_csv(data_path)
+    # === 1. Load data ===
+    df = pd.read_csv(data_path)
 
-        # Features & label
-        X = pd.get_dummies(df.drop(columns=["salary_bin"]))
-        le = LabelEncoder()
-        y = le.fit_transform(df["salary_bin"])
+    X = pd.get_dummies(df.drop(columns=["salary_bin"]))
+    y = LabelEncoder().fit_transform(df["salary_bin"])
 
-        # Split data
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, stratify=y, test_size=0.2, random_state=42
-        )
+    # === 2. Split ===
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, stratify=y, random_state=42
+    )
 
-        # Train model
-        model = RandomForestClassifier(n_estimators=100, random_state=42)
-        model.fit(X_train, y_train)
+    # === 3. Train model ===
+    model = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42)
+    model.fit(X_train, y_train)
 
-        # Evaluate
-        preds = model.predict(X_test)
-        acc = accuracy_score(y_test, preds)
-        print(f"✅ Akurasi: {acc:.4f}")
+    # === 4. Evaluate ===
+    y_pred = model.predict(X_test)
+    acc = accuracy_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred, average="weighted")
+    precision = precision_score(y_test, y_pred, average="weighted")
+    recall = recall_score(y_test, y_pred, average="weighted")
 
-        # Log metrics
+    # === 5. Log to MLflow ===
+    with mlflow.start_run():
         mlflow.log_param("n_estimators", 100)
-        mlflow.log_param("random_state", 42)
+        mlflow.log_param("max_depth", 10)
         mlflow.log_metric("accuracy", acc)
+        mlflow.log_metric("f1_score", f1)
+        mlflow.log_metric("precision", precision)
+        mlflow.log_metric("recall", recall)
+        mlflow.sklearn.log_model(model, "model")
 
-        # Log raw model & label encoder
-        os.makedirs("outputs", exist_ok=True)
-        joblib.dump(model, "outputs/model.pkl")
-        joblib.dump(le, "outputs/label_encoder.pkl")
-        mlflow.log_artifact("outputs/model.pkl")
-        mlflow.log_artifact("outputs/label_encoder.pkl")
-
-        # Log as MLflow model
-        mlflow.sklearn.log_model(model, artifact_path="sklearn-model")
-
-        # Download model artifact from remote (DAGsHub)
-        run_id = run.info.run_id
-        source_path = download_artifacts(artifact_uri=f"runs:/{run_id}/sklearn-model")
-        target_path = "outputs/mlflow-model"
-
-        if os.path.exists(target_path):
-            shutil.rmtree(target_path)
-        shutil.copytree(source_path, target_path)
-
+        print("✅ Model berhasil dicatat.")
+        print(f"🔢 Akurasi: {acc:.4f}")
+        print(f"🎯 F1-score: {f1:.4f}")
+        print(f"📌 Precision: {precision:.4f}")
+        print(f"📌 Recall: {recall:.4f}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_path', type=str, default='data_preprocessed.csv')
+    parser.add_argument("--data_path", type=str, required=True)
     args = parser.parse_args()
     main(args.data_path)
