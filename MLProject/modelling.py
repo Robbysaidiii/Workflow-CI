@@ -27,8 +27,40 @@ if 'MLFLOW_RUN_ID' in os.environ:
     del os.environ['MLFLOW_RUN_ID']
 
 # === 1. Inisialisasi koneksi ke DagsHub ===
-dagshub.init(repo_owner="Robbysaidiii", repo_name="my-first-repo", mlflow=True)
-mlflow.set_experiment("Income Classification Tuning")
+# Different approach for GitHub Actions vs local
+if os.environ.get('GITHUB_ACTIONS'):
+    # In GitHub Actions: Use direct MLflow connection
+    print("🤖 Running in GitHub Actions - using direct MLflow connection")
+    mlflow.set_tracking_uri("https://dagshub.com/Robbysaidiii/my-first-repo.mlflow")
+    
+    # Verify environment variables are set
+    if not os.environ.get('MLFLOW_TRACKING_USERNAME'):
+        raise ValueError("MLFLOW_TRACKING_USERNAME not set")
+    if not os.environ.get('MLFLOW_TRACKING_PASSWORD'):
+        raise ValueError("MLFLOW_TRACKING_PASSWORD not set")
+    
+    # Set experiment directly
+    try:
+        mlflow.set_experiment("Income Classification Tuning")
+        print("✅ MLflow experiment set successfully")
+    except Exception as e:
+        print(f"❌ Failed to set experiment: {e}")
+        # Create experiment if it doesn't exist
+        experiment_id = mlflow.create_experiment("Income Classification Tuning")
+        mlflow.set_experiment("Income Classification Tuning")
+        print("✅ Created and set new experiment")
+else:
+    # Local development: Use dagshub.init()
+    print("🏠 Running locally - using DagsHub init")
+    try:
+        dagshub.init(repo_owner="Robbysaidiii", repo_name="my-first-repo", mlflow=True)
+        mlflow.set_experiment("Income Classification Tuning")
+        print("✅ DagsHub initialization successful")
+    except Exception as e:
+        print(f"⚠️ DagsHub init failed: {e}")
+        print("📝 Using local MLflow tracking")
+        mlflow.set_tracking_uri("file:./mlruns")
+        mlflow.set_experiment("Income Classification Tuning")
 
 # === 2. Load data ===
 df = pd.read_csv(args.data_path)
@@ -82,8 +114,10 @@ grid = GridSearchCV(
     scoring="accuracy"
 )
 
+print("🔄 Starting Grid Search...")
 grid.fit(X_train, y_train)
 best_model = grid.best_estimator_
+print("✅ Grid Search completed")
 
 # === 10. Evaluasi model ===
 y_pred = best_model.predict(X_test)
@@ -97,22 +131,32 @@ recall = recall_score(y_test, y_pred, average="weighted")
 import time
 run_name = f"income_classification_{int(time.time())}"
 
-with mlflow.start_run(run_name=run_name):
-    mlflow.log_params(grid.best_params_)
-    mlflow.log_metric("accuracy", acc)
-    mlflow.log_metric("f1_score", f1)
-    mlflow.log_metric("precision", precision)
-    mlflow.log_metric("recall", recall)
-    
-    # Simpan pipeline lengkap (preprocessing + model)
-    mlflow.sklearn.log_model(best_model, "model")
-    
-    # Log current run ID for later use
-    current_run = mlflow.active_run()
-    print(f"🆔 Current run ID: {current_run.info.run_id}")
-    
-    print("✅ Model dan pipeline berhasil dicatat di DagsHub.")
+try:
+    with mlflow.start_run(run_name=run_name):
+        mlflow.log_params(grid.best_params_)
+        mlflow.log_metric("accuracy", acc)
+        mlflow.log_metric("f1_score", f1)
+        mlflow.log_metric("precision", precision)
+        mlflow.log_metric("recall", recall)
+        
+        # Simpan pipeline lengkap (preprocessing + model)
+        mlflow.sklearn.log_model(best_model, "model")
+        
+        # Log current run ID for later use
+        current_run = mlflow.active_run()
+        print(f"🆔 Current run ID: {current_run.info.run_id}")
+        
+        print("✅ Model dan pipeline berhasil dicatat di MLflow.")
+        print(f"🔢 Akurasi: {acc:.4f}")
+        print(f"🎯 F1-score: {f1:.4f}")
+        print(f"📌 Precision: {precision:.4f}")
+        print(f"📌 Recall: {recall:.4f}")
+
+except Exception as e:
+    print(f"❌ MLflow logging failed: {e}")
+    print("📊 Model Results (not logged):")
     print(f"🔢 Akurasi: {acc:.4f}")
     print(f"🎯 F1-score: {f1:.4f}")
     print(f"📌 Precision: {precision:.4f}")
     print(f"📌 Recall: {recall:.4f}")
+    raise
