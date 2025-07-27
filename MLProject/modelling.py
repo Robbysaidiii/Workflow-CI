@@ -20,8 +20,36 @@ def main(data_path):
     """
     Main training function
     """
-    # === 1. Inisialisasi koneksi ke DagsHub ===
-    dagshub.init(repo_owner="Robbysaidiii", repo_name="my-first-repo", mlflow=True)
+    # === 1. Setup MLflow tracking dengan DagsHub ===
+    try:
+        # Set DagsHub MLflow tracking URI
+        mlflow_tracking_uri = "https://dagshub.com/Robbysaidiii/my-first-repo.mlflow"
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
+        
+        # Setup authentication untuk CI/CD
+        if os.getenv('GITHUB_ACTIONS'):
+            # CI/CD environment - use username/password authentication
+            dagshub_username = os.getenv('DAGSHUB_USERNAME', 'Robbysaidiii')
+            dagshub_password = os.getenv('DAGSHUB_PASSWORD')
+            
+            if dagshub_password:
+                os.environ['MLFLOW_TRACKING_USERNAME'] = dagshub_username
+                os.environ['MLFLOW_TRACKING_PASSWORD'] = dagshub_password
+                print(f"🔧 CI/CD Mode - Using DagsHub with username: {dagshub_username}")
+            else:
+                print("⚠️  DAGSHUB_PASSWORD not found, may face authentication issues")
+        else:
+            # Local development - use dagshub.init
+            dagshub.init(repo_owner="Robbysaidiii", repo_name="my-first-repo", mlflow=True)
+            print("🔧 Local Mode - Connected to DagsHub via dagshub.init")
+            
+        print(f"📊 MLflow Tracking URI: {mlflow_tracking_uri}")
+        
+    except Exception as e:
+        print(f"❌ DagsHub setup failed: {e}")
+        # Don't fallback to local, let it fail to ensure DagsHub tracking
+        raise
+    
     mlflow.set_experiment("Income Classification Tuning")
     
     # === 2. Load data ===
