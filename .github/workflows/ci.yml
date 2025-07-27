@@ -81,8 +81,7 @@ jobs:
         run: |
           conda activate mlflow-env
           mlflow artifacts download \
-            --run-id 36e72111f66949e1bdca8ab326c9e669 \
-            --artifact-path model \
+            --artifact-uri "mlflow-artifacts:/264e49afba10434fb82cdd1e27edec46/36e72111f66949e1bdca8ab326c9e669/artifacts/model" \
             -d dags_model
 
       - name: Build and Push Docker Image
