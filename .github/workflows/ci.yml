@@ -1,4 +1,4 @@
-name: Pipeline
+name: ML Workflow CI/CD
 
 on:
   push:
@@ -23,7 +23,7 @@ jobs:
           auto-update-conda: true
           conda-solver: classic
 
-      - name: Install Dependencies
+      - name: Install Python Dependencies
         shell: bash -l {0}
         run: |
           conda activate mlflow-env
@@ -54,8 +54,6 @@ jobs:
           auto-activate-base: false
           activate-environment: mlflow-env
           environment-file: MLProject/conda.yaml
-          auto-update-conda: true
-          conda-solver: classic
 
       - name: Install MLflow
         shell: bash -l {0}
