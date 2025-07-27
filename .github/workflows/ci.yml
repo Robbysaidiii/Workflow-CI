@@ -1,22 +1,15 @@
-name: ML Pipeline with Docker
+name: Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:  # Manual trigger
-
-env:
-  DOCKER_IMAGE_NAME: income-classification
-  MODEL_VERSION: ${{ github.sha }}
 
 jobs:
   train:
     runs-on: ubuntu-latest
-    outputs:
-      model-accuracy: ${{ steps.train-model.outputs.accuracy }}
-    
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -28,82 +21,32 @@ jobs:
           activate-environment: mlflow-env
           environment-file: MLProject/conda.yaml
           auto-update-conda: true
-          conda-solver: libmamba
+          conda-solver: classic
 
-      - name: Install additional dependencies
+      - name: Install Dependencies
         shell: bash -l {0}
         run: |
           conda activate mlflow-env
-          pip install mlflow dagshub
+          pip install mlflow scikit-learn pandas
 
-      - name: Run MLflow Project
-        id: train-model
+      - name: Run MLflow Project (log to DagsHub)
         shell: bash -l {0}
         working-directory: MLProject
         env:
-          # DagsHub authentication
-          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          DAGSHUB_PASSWORD: ${{ secrets.DAGSHUB_PASSWORD }}
-          GITHUB_ACTIONS: true
+          MLFLOW_TRACKING_URI: https://dagshub.com/Robbysaidiii/my-first-repo.mlflow
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_PASSWORD }}
         run: |
           conda activate mlflow-env
-          
-          # Verify data file exists
-          if [ ! -f "data_preprocessed.csv" ]; then
-            echo "❌ Data file not found!"
-            exit 1
-          fi
-          
-          # Verify DagsHub authentication
-          if [ -z "$DAGSHUB_PASSWORD" ]; then
-            echo "❌ DAGSHUB_PASSWORD secret not found!"
-            exit 1
-          fi
-          
-          # Run MLflow project with DagsHub tracking
-          echo "🚀 Starting MLflow project with DagsHub tracking..."
           mlflow run . -P data_path=data_preprocessed.csv
-          
-          # Check if model was created successfully
-          if [ -d "outputs/mlflow-model" ]; then
-            echo "✅ Model training completed successfully"
-            # Extract accuracy from MLflow run (simplified)
-            echo "accuracy=0.87" >> $GITHUB_OUTPUT
-          else
-            echo "❌ Model training failed"
-            exit 1
-          fi
 
-      - name: Upload model artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: trained-model
-          path: |
-            MLProject/outputs/
-            MLProject/mlruns/
-          retention-days: 30
-
-      - name: Upload training logs
-        uses: actions/upload-artifact@v4
-        with:
-          name: training-logs
-          path: MLProject/mlruns/
-          retention-days: 7
-
-  docker-build:
+  docker:
     needs: train
     runs-on: ubuntu-latest
-    if: success()
-    
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
-      - name: Download model artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: trained-model
-          path: MLProject/
 
       - name: Set up Miniconda
         uses: conda-incubator/setup-miniconda@v3
@@ -112,7 +55,7 @@ jobs:
           activate-environment: mlflow-env
           environment-file: MLProject/conda.yaml
           auto-update-conda: true
-          conda-solver: libmamba
+          conda-solver: classic
 
       - name: Install MLflow
         shell: bash -l {0}
@@ -129,77 +72,23 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build Docker Image with MLflow
+      - name: Download model artifact from DagsHub
         shell: bash -l {0}
-        working-directory: MLProject
+        env:
+          MLFLOW_TRACKING_URI: https://dagshub.com/Robbysaidiii/my-first-repo.mlflow
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_PASSWORD }}
         run: |
           conda activate mlflow-env
-          
-          # Verify model exists
-          if [ ! -d "outputs/mlflow-model" ]; then
-            echo "❌ Model directory not found!"
-            exit 1
-          fi
-          
-          # Build Docker image using MLflow
-          mlflow models build-docker \
-            --model-uri outputs/mlflow-model \
-            --name ${{ env.DOCKER_IMAGE_NAME }}:${{ env.MODEL_VERSION }}
+          mlflow artifacts download \
+            --run-id 36e72111f66949e1bdca8ab326c9e669 \
+            --artifact-path model \
+            -d dags_model
 
-      - name: Tag and Push Docker Image
+      - name: Build and Push Docker Image
+        shell: bash -l {0}
         run: |
-          # Tag with version and latest
-          docker tag ${{ env.DOCKER_IMAGE_NAME }}:${{ env.MODEL_VERSION }} \
-            ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:${{ env.MODEL_VERSION }}
-          
-          docker tag ${{ env.DOCKER_IMAGE_NAME }}:${{ env.MODEL_VERSION }} \
-            ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:latest
-          
-          # Push both tags
-          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:${{ env.MODEL_VERSION }}
-          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:latest
-
-      - name: Create Docker Image Info
-        run: |
-          echo "## Docker Image Information" > docker-info.md
-          echo "- **Image**: \`${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}\`" >> docker-info.md
-          echo "- **Version**: \`${{ env.MODEL_VERSION }}\`" >> docker-info.md
-          echo "- **Latest Tag**: \`${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:latest\`" >> docker-info.md
-          echo "- **Build Date**: $(date)" >> docker-info.md
-          echo "- **Model Accuracy**: ${{ needs.train.outputs.model-accuracy }}" >> docker-info.md
-          
-          # Usage instructions
-          echo "" >> docker-info.md
-          echo "### Usage" >> docker-info.md
-          echo "\`\`\`bash" >> docker-info.md
-          echo "docker run -p 8080:8080 ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:latest" >> docker-info.md
-          echo "\`\`\`" >> docker-info.md
-
-      - name: Upload Docker Info
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-info
-          path: docker-info.md
-
-  deploy-notification:
-    needs: [train, docker-build]
-    runs-on: ubuntu-latest
-    if: always()
-    
-    steps:
-      - name: Notify Deployment Status
-        run: |
-          if [ "${{ needs.train.result }}" == "success" ] && [ "${{ needs.docker-build.result }}" == "success" ]; then
-            echo "🎉 Pipeline completed successfully!"
-            echo "✅ Model trained with accuracy: ${{ needs.train.outputs.model-accuracy }}"
-            echo "🐳 Docker image pushed to Docker Hub"
-            echo "📊 Check DagsHub for experiment tracking"
-          else
-            echo "❌ Pipeline failed!"
-            if [ "${{ needs.train.result }}" != "success" ]; then
-              echo "- Training job failed"
-            fi
-            if [ "${{ needs.docker-build.result }}" != "success" ]; then
-              echo "- Docker build job failed"
-            fi
-          fi
+          conda activate mlflow-env
+          mlflow models build-docker -m dags_model -n salary-model
+          docker tag salary-model ${{ secrets.DOCKER_USERNAME }}/income-classification:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/income-classification:latest
