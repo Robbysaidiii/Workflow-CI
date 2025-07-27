@@ -29,7 +29,8 @@ jobs:
         shell: bash -l {0}
         run: |
           conda activate mlflow-env
-          pip install mlflow dagshub scikit-learn pandas
+          # Dependencies already in conda.yaml, just ensure they're installed
+          conda list
 
       - name: Run MLflow Project (log to DagsHub)
         id: training
@@ -81,7 +82,8 @@ jobs:
         shell: bash -l {0}
         run: |
           conda activate mlflow-env
-          pip install mlflow dagshub
+          # Dependencies already in conda.yaml
+          conda list | grep -e mlflow -e dagshub
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
