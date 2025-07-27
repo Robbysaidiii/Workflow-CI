@@ -40,7 +40,7 @@ def main(data_path):
         mlflow.log_metric("f1_score", f1)
         mlflow.log_metric("precision", precision)
         mlflow.log_metric("recall", recall)
-        mlflow.sklearn.log_model(model, "model")
+        mlflow.sklearn.log_model(model,  path="outputs/mlflow-model")
 
         print("✅ Model berhasil dicatat.")
         print(f"🔢 Akurasi: {acc:.4f}")
