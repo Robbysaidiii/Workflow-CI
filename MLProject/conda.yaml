@@ -1,8 +1,17 @@
+name: mlflow-env
+channels:
+  - conda-forge
+  - defaults
 dependencies:
   - python=3.10
-  - scikit-learn
-  - pandas
-  - mlflow
   - pip
+  - pandas>=1.3.0
+  - scikit-learn>=1.0.0
+  - numpy>=1.21.0
+  - joblib>=1.0.0
   - pip:
-      - dagshub
+    - mlflow>=2.0.0
+    - dagshub>=0.3.0
+    - cloudpickle>=2.0.0
+    - psutil>=5.8.0
+    - packaging>=21.0

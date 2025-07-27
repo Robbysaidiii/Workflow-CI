@@ -1,9 +1,15 @@
-name: mlflow-ci-project
+name: income-classification
 
 conda_env: conda.yaml
 
 entry_points:
   main:
     parameters:
-      data_path: {type: str, default: "data_preprocessed.csv"}
+      data_path: {type: string, default: "data_preprocessed.csv"}
     command: "python modelling.py --data_path {data_path}"
+  
+  predict:
+    parameters:
+      model_path: {type: string, default: "outputs/mlflow-model"}
+      input_data: {type: string, default: "test_data.csv"}
+    command: "python predict.py --model_path {model_path} --input_data {input_data}"
