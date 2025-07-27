@@ -9,8 +9,6 @@ on:
 jobs:
   train:
     runs-on: ubuntu-latest
-    outputs:
-      run_id: ${{ steps.training.outputs.run_id }}
 
     steps:
       - name: Checkout Repository
@@ -25,15 +23,50 @@ jobs:
           auto-update-conda: true
           conda-solver: classic
 
-      - name: Install Dependencies
+      - name: Verify Environment and Dependencies
         shell: bash -l {0}
         run: |
           conda activate mlflow-env
-          # Dependencies already in conda.yaml, just ensure they're installed
-          conda list
+          conda list | grep -E "(mlflow|dagshub|scikit-learn|pandas)"
+          python --version
 
-      - name: Run MLflow Project (log to DagsHub)
-        id: training
+      - name: Debug Secrets (without exposing values)
+        shell: bash -l {0}
+        run: |
+          echo "DAGSHUB_USERNAME is set: ${{ secrets.DAGSHUB_USERNAME != '' }}"
+          echo "DAGSHUB_PASSWORD is set: ${{ secrets.DAGSHUB_PASSWORD != '' }}"
+
+      - name: Test DagsHub Connection
+        shell: bash -l {0}
+        env:
+          MLFLOW_TRACKING_URI: https://dagshub.com/Robbysaidiii/my-first-repo.mlflow
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_PASSWORD }}
+        run: |
+          conda activate mlflow-env
+          python -c "
+          import os
+          import dagshub
+          import mlflow
+          
+          # Debug environment variables
+          print('MLFLOW_TRACKING_URI:', os.environ.get('MLFLOW_TRACKING_URI', 'NOT SET'))
+          print('MLFLOW_TRACKING_USERNAME:', 'SET' if os.environ.get('MLFLOW_TRACKING_USERNAME') else 'NOT SET')
+          print('MLFLOW_TRACKING_PASSWORD:', 'SET' if os.environ.get('MLFLOW_TRACKING_PASSWORD') else 'NOT SET')
+          
+          # Test connection
+          try:
+              dagshub.init(repo_owner='Robbysaidiii', repo_name='my-first-repo', mlflow=True)
+              # Try to list experiments to test connection
+              experiments = mlflow.search_experiments()
+              print('✅ DagsHub connection successful')
+              print(f'Found {len(experiments)} experiments')
+          except Exception as e:
+              print('❌ DagsHub connection failed:', str(e))
+              raise
+          "
+
+      - name: Run MLflow Project with Better Error Handling
         shell: bash -l {0}
         working-directory: MLProject
         env:
@@ -43,27 +76,16 @@ jobs:
         run: |
           conda activate mlflow-env
           
-          # Clear any orphaned run state
+          # Clear any existing run state
           unset MLFLOW_RUN_ID || true
           
-          # Run MLflow project
-          mlflow run . -P data_path=data_preprocessed.csv
-          
-          # Get the latest run ID for this experiment
-          RUN_ID=$(python -c "
-          import mlflow
-          import dagshub
-          dagshub.init(repo_owner='Robbysaidiii', repo_name='my-first-repo', mlflow=True)
-          mlflow.set_experiment('Income Classification Tuning')
-          experiment = mlflow.get_experiment_by_name('Income Classification Tuning')
-          runs = mlflow.search_runs(experiment_ids=[experiment.experiment_id], max_results=1)
-          print(runs.iloc[0]['run_id'])
-          ")
-          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          # Alternative: Run Python script directly instead of mlflow run
+          python modelling.py --data_path data_preprocessed.csv
 
   docker:
     needs: train
     runs-on: ubuntu-latest
+    if: success()
 
     steps:
       - name: Checkout Repository
@@ -77,13 +99,6 @@ jobs:
           environment-file: MLProject/conda.yaml
           auto-update-conda: true
           conda-solver: classic
-
-      - name: Install MLflow and DagsHub
-        shell: bash -l {0}
-        run: |
-          conda activate mlflow-env
-          # Dependencies already in conda.yaml
-          conda list | grep -e mlflow -e dagshub
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -102,12 +117,6 @@ jobs:
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_PASSWORD }}
         run: |
           conda activate mlflow-env
-          
-          # Initialize DagsHub connection
-          python -c "
-          import dagshub
-          dagshub.init(repo_owner='Robbysaidiii', repo_name='my-first-repo', mlflow=True)
-          "
           
           # Get the latest successful run
           LATEST_RUN_ID=$(python -c "
