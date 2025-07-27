@@ -1,4 +1,4 @@
-name: Pipeline
+name: ML Pipeline
 
 on:
   push:
@@ -9,6 +9,8 @@ on:
 jobs:
   train:
     runs-on: ubuntu-latest
+    outputs:
+      run_id: ${{ steps.training.outputs.run_id }}
 
     steps:
       - name: Checkout Repository
@@ -27,9 +29,10 @@ jobs:
         shell: bash -l {0}
         run: |
           conda activate mlflow-env
-          pip install mlflow scikit-learn pandas
+          pip install mlflow dagshub scikit-learn pandas
 
       - name: Run MLflow Project (log to DagsHub)
+        id: training
         shell: bash -l {0}
         working-directory: MLProject
         env:
@@ -38,7 +41,24 @@ jobs:
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_PASSWORD }}
         run: |
           conda activate mlflow-env
+          
+          # Clear any orphaned run state
+          unset MLFLOW_RUN_ID || true
+          
+          # Run MLflow project
           mlflow run . -P data_path=data_preprocessed.csv
+          
+          # Get the latest run ID for this experiment
+          RUN_ID=$(python -c "
+          import mlflow
+          import dagshub
+          dagshub.init(repo_owner='Robbysaidiii', repo_name='my-first-repo', mlflow=True)
+          mlflow.set_experiment('Income Classification Tuning')
+          experiment = mlflow.get_experiment_by_name('Income Classification Tuning')
+          runs = mlflow.search_runs(experiment_ids=[experiment.experiment_id], max_results=1)
+          print(runs.iloc[0]['run_id'])
+          ")
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
 
   docker:
     needs: train
@@ -57,11 +77,11 @@ jobs:
           auto-update-conda: true
           conda-solver: classic
 
-      - name: Install MLflow
+      - name: Install MLflow and DagsHub
         shell: bash -l {0}
         run: |
           conda activate mlflow-env
-          pip install mlflow
+          pip install mlflow dagshub
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -80,8 +100,38 @@ jobs:
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_PASSWORD }}
         run: |
           conda activate mlflow-env
+          
+          # Initialize DagsHub connection
+          python -c "
+          import dagshub
+          dagshub.init(repo_owner='Robbysaidiii', repo_name='my-first-repo', mlflow=True)
+          "
+          
+          # Get the latest successful run
+          LATEST_RUN_ID=$(python -c "
+          import mlflow
+          import dagshub
+          dagshub.init(repo_owner='Robbysaidiii', repo_name='my-first-repo', mlflow=True)
+          mlflow.set_experiment('Income Classification Tuning')
+          experiment = mlflow.get_experiment_by_name('Income Classification Tuning')
+          runs = mlflow.search_runs(
+              experiment_ids=[experiment.experiment_id], 
+              filter_string='status = \"FINISHED\"',
+              order_by=['start_time DESC'],
+              max_results=1
+          )
+          if len(runs) > 0:
+              print(runs.iloc[0]['run_id'])
+          else:
+              raise Exception('No successful runs found')
+          ")
+          
+          echo "Using run ID: $LATEST_RUN_ID"
+          
+          # Download model artifacts
           mlflow artifacts download \
-            --artifact-uri "mlflow-artifacts:/264e49afba10434fb82cdd1e27edec46/36e72111f66949e1bdca8ab326c9e669/artifacts/model" \
+            --run-id "$LATEST_RUN_ID" \
+            --artifact-path "model" \
             -d dags_model
 
       - name: Build and Push Docker Image

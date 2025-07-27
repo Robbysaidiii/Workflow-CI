@@ -16,6 +16,16 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--data_path", type=str, default="data_preprocessed.csv")
 args = parser.parse_args()
 
+# === FIX: Clear any orphaned run state ===
+try:
+    mlflow.end_run()
+except:
+    pass
+
+# Clear environment variable if exists
+if 'MLFLOW_RUN_ID' in os.environ:
+    del os.environ['MLFLOW_RUN_ID']
+
 # === 1. Inisialisasi koneksi ke DagsHub ===
 dagshub.init(repo_owner="Robbysaidiii", repo_name="my-first-repo", mlflow=True)
 mlflow.set_experiment("Income Classification Tuning")
@@ -83,16 +93,24 @@ precision = precision_score(y_test, y_pred, average="weighted")
 recall = recall_score(y_test, y_pred, average="weighted")
 
 # === 11. Logging ke MLflow ===
-with mlflow.start_run():
+# Force new run with unique name
+import time
+run_name = f"income_classification_{int(time.time())}"
+
+with mlflow.start_run(run_name=run_name):
     mlflow.log_params(grid.best_params_)
     mlflow.log_metric("accuracy", acc)
     mlflow.log_metric("f1_score", f1)
     mlflow.log_metric("precision", precision)
     mlflow.log_metric("recall", recall)
-
+    
     # Simpan pipeline lengkap (preprocessing + model)
     mlflow.sklearn.log_model(best_model, "model")
-
+    
+    # Log current run ID for later use
+    current_run = mlflow.active_run()
+    print(f"🆔 Current run ID: {current_run.info.run_id}")
+    
     print("✅ Model dan pipeline berhasil dicatat di DagsHub.")
     print(f"🔢 Akurasi: {acc:.4f}")
     print(f"🎯 F1-score: {f1:.4f}")
