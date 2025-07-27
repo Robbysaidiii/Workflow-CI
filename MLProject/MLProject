@@ -1,4 +1,4 @@
-name: salary-prediction
+name: mlflow-ci-project
 
 conda_env: conda.yaml
 

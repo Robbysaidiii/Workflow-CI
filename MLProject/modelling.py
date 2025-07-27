@@ -1,9 +1,9 @@
 import os
+import argparse
 import pandas as pd
 import mlflow
 import mlflow.sklearn
 import dagshub
-
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder, StandardScaler, LabelEncoder
@@ -11,12 +11,17 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
+# === 0. Parsing argumen dari MLflow ===
+parser = argparse.ArgumentParser()
+parser.add_argument("--data_path", type=str, default="data_preprocessed.csv")
+args = parser.parse_args()
+
 # === 1. Inisialisasi koneksi ke DagsHub ===
 dagshub.init(repo_owner="Robbysaidiii", repo_name="my-first-repo", mlflow=True)
 mlflow.set_experiment("Income Classification Tuning")
 
 # === 2. Load data ===
-df = pd.read_csv("data_preprocessed.csv")
+df = pd.read_csv(args.data_path)
 
 # Cek apakah kolom target ada
 if "salary_bin" not in df.columns:
